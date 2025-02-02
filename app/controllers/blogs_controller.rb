@@ -64,15 +64,20 @@ class BlogsController < ApplicationController
   def import
     file = params[:attachment]
     data = CSV.parse(file.to_io, headers: true, encoding: 'utf8')
-    # Start code to handle CSV data
-    ActiveRecord::Base.transaction do
-      data.each do |row|
-        current_user.blogs.create!(row.to_h)
-      end
+    
+    # Prepare data for bulk insert
+    blogs = data.map do |row|
+      hash = row.to_h
+      hash["user_id"] = current_user.id
+      hash
     end
-    # End code to handle CSV data
-    redirect_to blogs_path
+    
+    # Perform bulk insert
+    Blog.insert_all(blogs)
+    
+    redirect_to blogs_path, notice: "#{blogs.size} blogs were successfully imported."
   end
+  
 
   private
     # Use callbacks to share common setup or constraints between actions.
