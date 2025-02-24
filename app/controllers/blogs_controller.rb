@@ -63,15 +63,19 @@ class BlogsController < ApplicationController
 
   def import
     file = params[:attachment]
-    data = CSV.parse(file.to_io, headers: true, encoding: 'utf8')
-    # Start code to handle CSV data
-    ActiveRecord::Base.transaction do
-      data.each do |row|
-        current_user.blogs.create!(row.to_h)
-      end
+  
+    if file.present?
+      # Save the file temporarily in `tmp/` so the background job can access it
+      temp_path = Rails.root.join('tmp', "import_#{Time.now}.csv")
+      File.open(temp_path, 'wb') { |f| f.write(file.read) }
+  
+      # Enqueue the background job with the file path and user ID
+      BulkImportBlogsJob.perform_later(10000, temp_path, current_user.id)
+  
+      redirect_to blogs_path, notice: "Blog upload started. You will be notified when it's done."
+    else
+      redirect_to blogs_path, alert: "Please upload a valid CSV file."
     end
-    # End code to handle CSV data
-    redirect_to blogs_path
   end
 
   private
